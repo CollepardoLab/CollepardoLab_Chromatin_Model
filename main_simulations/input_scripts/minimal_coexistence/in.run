@@ -1,0 +1,193 @@
+# VARIABLES
+variable fname index data_nonb.txt
+variable simname index dna
+variable DT equal 500
+variable T equal 300.0
+variable E1 equal 0.3208333333333333
+variable E2 equal 6.0
+variable RC equal 5.0
+variable A equal 25.583333333333336
+variable B equal 40
+
+variable AC equal "1.122*v_A"
+variable BC equal "3*v_B"
+
+
+# Initialization
+units		real
+atom_style   hybrid ellipsoid angle charge
+
+
+boundary p p p
+
+
+log 	log.dna.txt
+read_data	${fname}
+
+#scale masses in nucls to 5% so similar to dna
+
+#set type 1 mass 100000
+set type 1 mass 10000
+set type 2 mass   3250
+set type 3 mass   325
+#set type 4 mass 1
+
+set type 1 shape 56 56 40
+set type 2 shape 24 24 24
+set type 3 shape 24 24 24
+
+
+
+#**** pair params go here****
+#
+
+pair_style hybrid/overlay lj/cut ${BC} aniso 1 1 1 60
+pair_coeff * * none
+pair_coeff 1 1 lj/cut 0.1 55 61.71
+pair_coeff 1 2 lj/cut ${E1} ${B} ${BC}
+pair_coeff 1 3 lj/cut ${E1} ${B} ${BC}
+pair_coeff 2 2 lj/cut 0.1 ${A} ${AC}
+pair_coeff 2 3 lj/cut 0.1 ${A} ${AC}
+pair_coeff 3 3 lj/cut 0.1 ${A} ${AC}
+pair_coeff 1 2 aniso ${E2} 0.0 1 1 0.0001 1 1 1 ${RC} 60
+pair_coeff 1 3 aniso ${E2} 0.0 1 1 0.0001 1 1 1 ${RC} 60
+
+pair_modify shift yes
+neighbor 50 bin
+neigh_modify every 1 delay 0
+
+special_bonds fene
+
+bond_style  hybrid harmonic/DNA zero
+bond_coeff  1 harmonic/DNA 0.0 0.0
+bond_coeff  2 zero
+
+group cores type 1
+group linker_dna type 2
+group nucl_dna type 3
+group nucl molecule > 0
+
+# remove interaction within rigid body
+neigh_modify exclude molecule/intra nucl
+
+
+# delete bonds that will be fixed rigid
+#variable NN equal $(count(cores))
+#variable n loop ${NN}
+#label nloop
+#
+#group thisnucl molecule ${n}
+#
+#delete_bonds thisnucl bond 1 remove special
+#
+#next n
+#jump SELF nloop
+
+
+## type 2 are left over from previous version, not needed here
+#delete_bonds all bond 2 remove special
+
+
+compute q all property/atom quatw quati quatj quatk
+compute shape all property/atom shapex shapey shapez
+compute rg all gyration 
+
+# computes to calculate temperature of rigid bodies:
+
+compute erot_ldna linker_dna erotate/asphere
+compute etrans_ldna linker_dna ke
+
+compute erot_nucl nucl erotate/rigid 1
+compute etrans_nucl nucl ke/rigid 1
+
+variable ldna_temp equal "2.0*(c_erot_ldna+c_etrans_ldna)/(0.0019872041*6*count(linker_dna))" 
+variable nucl_temp equal "2.0*(c_erot_nucl+c_etrans_nucl)/(0.0019872041*6*count(cores))"
+timer timeout 35:50:00
+
+restart 10000 restart.1 restart.2
+
+
+dump	  1 all custom 200000 dna.dump &
+	     id xu yu zu c_q[1] c_q[2] c_q[3] c_q[4] &
+	      c_shape[1] c_shape[2] c_shape[3] mol q type fx fy fz
+
+dump_modify 1 sort id
+
+
+group markers id 1 409 817 1225 1633 2041 2449 2857 3265 3673 4081 4489 4897 5305 5713 6121 6529 6937 7345 7753 8161 8569 8977 9385 9793 10201 10609 11017 11425 11833 12241 12649 13057 13465 13873 14281 14689 15097 15505 15913 16321 16729 17137 17545 17953 18361 18769 19177 19585 19993 20401 20809 21217 21625 22033 22441 22849 23257 23665 24073 24481 24889 25297 25705 26113 26521 26929 27337 27745 28153 28561 28969 29377 29785 30193 30601 31009 31417 31825 32233 32641 33049 33457 33865 34273 34681 35089 35497 35905 36313 36721 37129 37537 37945 38353 38761 39169 39577 39985 40393
+
+compute newmsd markers msd
+
+dump 2 markers xyz 10000 prots.xyz
+#dump_modify 2 append yes
+
+
+dump 3 all custom 20000 coords.dump id xu yu zu type
+#dump_modify 3 sort id append yes
+
+
+comm_style tiled
+fix bl all balance 1000 1.0 rcb
+fix 1 nucl rigid/nve/small molecule
+fix 2 linker_dna  nve/asphere
+fix 3 linker_dna  langevin 1.0 1.0 0.1 123 angmom 3.0
+fix 4 nucl  langevin 1.0 1.0 0.1 123
+
+thermo_style custom step temp v_ldna_temp v_nucl_temp pe ebond epair ke etotal spcpu c_newmsd[4] lx ly lz press vol
+
+thermo          1000
+
+compute thermo all temp/asphere       
+thermo_modify temp thermo
+
+timestep 0.00001
+run 1000
+
+
+timestep 0.0001
+run 1000
+
+
+fix 3 linker_dna  langevin 1.0 1.0 1 123 angmom 3.0
+fix 4 nucl  langevin 1.0 1.0 1 123
+timestep 0.001
+run 1000
+
+timestep 0.01
+run 1000
+
+timestep 0.1
+run 1000
+
+
+
+timestep 10
+
+fix 3 linker_dna  langevin ${T} ${T} 1000 123 angmom 3.0
+fix 4 nucl  langevin ${T} ${T} 1000 123
+run 1000
+
+timestep 10
+
+fix 3 linker_dna  langevin ${T} ${T} 10000 123 angmom 3.0
+fix 4 nucl  langevin ${T} ${T} 10000 123
+run 1000
+
+timestep 100
+fix 3 linker_dna  langevin ${T} ${T} 500000 123 angmom 3.0
+fix 4 nucl  langevin ${T} ${T} 500000 123
+run 3000
+timestep ${DT}
+
+fix 3 linker_dna  langevin ${T} ${T} 500000 123 angmom 3.0
+fix 4 nucl  langevin ${T} ${T} 500000 123
+
+run 10000
+
+fix 3 linker_dna  langevin ${T} ${T} 5000000 123 angmom 3.0
+fix 4 nucl  langevin ${T} ${T} 5000000 123
+
+run 100000
+
+
+run 100000000
