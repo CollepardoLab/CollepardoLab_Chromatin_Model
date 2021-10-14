@@ -178,6 +178,7 @@ void PairAniso::compute(int eflag, int vflag)
 
         switch (form[itype][jtype]) {
         case SPHERE_SPHERE:
+        {
         #ifdef DEBUG
           printf("SS\n");
         #endif
@@ -200,8 +201,9 @@ void PairAniso::compute(int eflag, int vflag)
           ttor[0] = ttor[1] = ttor[2] = 0.0;
           rtor[0] = rtor[1] = rtor[2] = 0.0;
           break;
-
+        }
         case SPHERE_ELLIPSE:
+        {
         #ifdef DEBUG
           printf("SE\n");
         #endif
@@ -214,8 +216,9 @@ void PairAniso::compute(int eflag, int vflag)
           one_eng = gayberne_lj(j,i,a2,b2,g2,r12,rsq,fforce,rtor);
           ttor[0] = ttor[1] = ttor[2] = 0.0;
           break;
-
+        }
         case ELLIPSE_SPHERE:
+        {
         #ifdef DEBUG
           printf("ES\n");
         #endif
@@ -239,6 +242,7 @@ void PairAniso::compute(int eflag, int vflag)
           one_eng = gayberne_analytic(i,j,a1,a2,b1,b2,g1,g2,r12,rsq,
                                       fforce,ttor,rtor);
           break;
+        }
         }
 
         fforce[0] *= factor_lj;
@@ -322,10 +326,10 @@ void PairAniso::settings(int narg, char **arg)
 {
   if (narg != 4) error->all(FLERR,"Illegal pair_style command");
 
-  gamma = force->numeric(FLERR,arg[0]);
-  upsilon = force->numeric(FLERR,arg[1])/2.0;
-  mu = force->numeric(FLERR,arg[2]);
-  cut_global = force->numeric(FLERR,arg[3]);
+  gamma = utils::numeric(FLERR, 0, arg[0], lmp);
+  upsilon = utils::numeric(FLERR, 0, arg[1], lmp)/2.0;
+  mu = utils::numeric(FLERR, 0, arg[2], lmp);
+  cut_global = utils::numeric(FLERR, 0, arg[3], lmp);
 
   // reset cutoffs that have been explicitly set
 
@@ -348,22 +352,22 @@ void PairAniso::coeff(int narg, char **arg)
   if (!allocated) allocate();
 
   int ilo,ihi,jlo,jhi;
-  force->bounds(FLERR,arg[0],atom->ntypes,ilo,ihi);
-  force->bounds(FLERR,arg[1],atom->ntypes,jlo,jhi);
+  utils::bounds(FLERR, arg[0], 0, atom->ntypes, ilo, ihi, error);
+  utils::bounds(FLERR, arg[1], 0, atom->ntypes, jlo, jhi, error);
 
-  double epsilon_one = force->numeric(FLERR,arg[2]);
-  double sigma_one = force->numeric(FLERR,arg[3]);
-  double eia_one = force->numeric(FLERR,arg[4]);
-  double eib_one = force->numeric(FLERR,arg[5]);
-  double eic_one = force->numeric(FLERR,arg[6]);
-  double eja_one = force->numeric(FLERR,arg[7]);
-  double ejb_one = force->numeric(FLERR,arg[8]);
-  double ejc_one = force->numeric(FLERR,arg[9]);
+  double epsilon_one = utils::numeric(FLERR, 0, arg[2], lmp);
+  double sigma_one = utils::numeric(FLERR, 0, arg[3], lmp);
+  double eia_one = utils::numeric(FLERR, 0, arg[4], lmp);
+  double eib_one = utils::numeric(FLERR, 0, arg[5], lmp);
+  double eic_one = utils::numeric(FLERR, 0, arg[6], lmp);
+  double eja_one = utils::numeric(FLERR, 0, arg[7], lmp);
+  double ejb_one = utils::numeric(FLERR, 0, arg[8], lmp);
+  double ejc_one = utils::numeric(FLERR, 0, arg[9], lmp);
 
-  double mycut_one = force->numeric(FLERR,arg[10]);
+  double mycut_one = utils::numeric(FLERR, 0, arg[10], lmp);
 
   double cut_one = cut_global;
-  if (narg == 12) cut_one = force->numeric(FLERR,arg[11]);
+  if (narg == 12) cut_one = utils::numeric(FLERR, 0, arg[11], lmp);
 
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {

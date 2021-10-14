@@ -31,9 +31,10 @@
 #include "force.h"
 #include "memory.h"
 #include "error.h"
+#include "utils.h"
 #include "math_extra.h"
 #include "math_const.h"
-#include "math_vector.h"
+//#include "math_vector.h"
 #include <fstream>
 #include <sstream>
 //#define PRINT_DEBUG
@@ -268,7 +269,7 @@ void BondHarmonic_DNA::compute_helical_parameters(const double * x1, const doubl
     roll = gamma*cos(phi);
     tilt = gamma*sin(phi);
 
-    //shift, slide, rise are the components of the relative displacement of
+    //shift, slide, rise are the components of the relative displacement ofinline void copy3(const double *v, double *ans);
     //the two base pairs triads along the x,y,z, axes of the mst
     //Di = (r2 - r1).msti
 
@@ -906,10 +907,14 @@ void BondHarmonic_DNA::coeff(int narg, char **arg)
   if (!allocated) allocate();
 
   int ilo,ihi;
-  force->bounds(FLERR,arg[0],atom->nbondtypes,ilo,ihi);
+  //force->bounds(FLERR,arg[0],atom->nbondtypes,ilo,ihi); // deprecated
+  utils::bounds(FLERR, arg[0], 0, atom->nbondtypes, ilo, ihi, error);
 
-  double k_one = force->numeric(FLERR,arg[1]);
-  double r0_one = force->numeric(FLERR,arg[2]);
+  //double k_one = force->numeric(FLERR,arg[1]); // deprecated
+  //double r0_one = force->numeric(FLERR,arg[2]); // deprecated
+
+  double k_one = utils::numeric(FLERR, 0, arg[1], lmp);
+  double r0_one = utils::numeric(FLERR, 0, arg[2], lmp);
 
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {

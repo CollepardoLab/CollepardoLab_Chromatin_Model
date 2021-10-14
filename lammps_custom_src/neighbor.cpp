@@ -1347,7 +1347,7 @@ void Neighbor::init_topology()
     if (!neigh_bond || bondwhich != old_bondwhich) {
       delete neigh_bond;
       if (bondwhich == ALL)
-        neigh_bond = new NTopoBondAll(lmp);
+        neigh_bond = new LAMMPS_NS::NTopoBondAll(lmp);
       else if (bondwhich == PARTIAL)
         neigh_bond = new NTopoBondPartial(lmp);
       else if (bondwhich == TEMPLATE)
@@ -2183,7 +2183,7 @@ void Neighbor::set(int narg, char **arg)
 {
   if (narg != 2) error->all(FLERR,"Illegal neighbor command");
 
-  skin = force->numeric(FLERR,arg[0]);
+  skin = utils::numeric(FLERR, 0, arg[0], lmp);
   if (skin < 0.0) error->all(FLERR,"Illegal neighbor command");
 
   if (strcmp(arg[1],"nsq") == 0) style = Neighbor::NSQ;
@@ -2225,12 +2225,12 @@ void Neighbor::modify_params(int narg, char **arg)
   while (iarg < narg) {
     if (strcmp(arg[iarg],"every") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal neigh_modify command");
-      every = force->inumeric(FLERR,arg[iarg+1]);
+      every = utils::inumeric(FLERR, 0, arg[iarg+1], lmp);
       if (every <= 0) error->all(FLERR,"Illegal neigh_modify command");
       iarg += 2;
     } else if (strcmp(arg[iarg],"delay") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal neigh_modify command");
-      delay = force->inumeric(FLERR,arg[iarg+1]);
+      delay = utils::inumeric(FLERR, 0, arg[iarg+1], lmp);
       if (delay < 0) error->all(FLERR,"Illegal neigh_modify command");
       iarg += 2;
     } else if (strcmp(arg[iarg],"check") == 0) {
@@ -2248,16 +2248,16 @@ void Neighbor::modify_params(int narg, char **arg)
     } else if (strcmp(arg[iarg],"page") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal neigh_modify command");
       old_pgsize = pgsize;
-      pgsize = force->inumeric(FLERR,arg[iarg+1]);
+      pgsize = utils::inumeric(FLERR, 0, arg[iarg+1], lmp);
       iarg += 2;
     } else if (strcmp(arg[iarg],"one") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal neigh_modify command");
       old_oneatom = oneatom;
-      oneatom = force->inumeric(FLERR,arg[iarg+1]);
+      oneatom = utils::inumeric(FLERR, 0, arg[iarg+1], lmp);
       iarg += 2;
     } else if (strcmp(arg[iarg],"binsize") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal neigh_modify command");
-      binsize_user = force->numeric(FLERR,arg[iarg+1]);
+      binsize_user = utils::numeric(FLERR, 0, arg[iarg+1], lmp);
       if (binsize_user <= 0.0) binsizeflag = 0;
       else binsizeflag = 1;
       iarg += 2;
@@ -2289,8 +2289,8 @@ void Neighbor::modify_params(int narg, char **arg)
           memory->grow(ex1_type,maxex_type,"neigh:ex1_type");
           memory->grow(ex2_type,maxex_type,"neigh:ex2_type");
         }
-        ex1_type[nex_type] = force->inumeric(FLERR,arg[iarg+2]);
-        ex2_type[nex_type] = force->inumeric(FLERR,arg[iarg+3]);
+        ex1_type[nex_type] = utils::inumeric(FLERR, 0, arg[iarg+2], lmp);
+        ex2_type[nex_type] = utils::inumeric(FLERR, 0, arg[iarg+3], lmp);
         nex_type++;
         iarg += 4;
 

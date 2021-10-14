@@ -207,10 +207,10 @@ void PairLJLambda::settings(int narg, char **arg)
 {
   if (narg < 2 || narg > 3) error->all(FLERR,"Illegal pair_style command");
   
-  kappa = force->numeric(FLERR,arg[0]);
-  cut_lj_global = force->numeric(FLERR,arg[1]);
+  kappa = utils::numeric(FLERR, 0, arg[0], lmp);
+  cut_lj_global = utils::numeric(FLERR, 0, arg[1], lmp);
   if (narg == 1) cut_coul_global = cut_lj_global;
-  else cut_coul_global = force->numeric(FLERR,arg[2]);
+  else cut_coul_global = utils::numeric(FLERR, 0, arg[2], lmp);
 
   // reset cutoffs that have been explicitly set
 
@@ -236,17 +236,20 @@ void PairLJLambda::coeff(int narg, char **arg)
   if (!allocated) allocate();
 
   int ilo,ihi,jlo,jhi;
-  force->bounds(FLERR,arg[0],atom->ntypes,ilo,ihi);
-  force->bounds(FLERR,arg[1],atom->ntypes,jlo,jhi);
+  //force->bounds(FLERR,arg[0],atom->ntypes,ilo,ihi);
+  //force->bounds(FLERR,arg[1],atom->ntypes,jlo,jhi);
 
-  double epsilon_one = force->numeric(FLERR,arg[2]);
-  double sigma_one = force->numeric(FLERR,arg[3]);
-  double lambda_one = force->numeric(FLERR,arg[4]); //JM
+  utils::bounds(FLERR, arg[0], 0, atom->ntypes, ilo, ihi, error);
+  utils::bounds(FLERR, arg[1], 0, atom->ntypes, jlo, jhi, error);
+
+  double epsilon_one = utils::numeric(FLERR, 0, arg[2], lmp);
+  double sigma_one = utils::numeric(FLERR, 0, arg[3], lmp);
+  double lambda_one = utils::numeric(FLERR, 0, arg[4], lmp); //JM
 
   double cut_lj_one = cut_lj_global;
   double cut_coul_one = cut_coul_global;
-  if (narg >= 6) cut_coul_one = cut_lj_one = force->numeric(FLERR,arg[5]);
-  if (narg == 7) cut_coul_one = force->numeric(FLERR,arg[6]);
+  if (narg >= 6) cut_coul_one = cut_lj_one = utils::numeric(FLERR, 0, arg[5], lmp);
+  if (narg == 7) cut_coul_one = utils::numeric(FLERR, 0, arg[6], lmp);
 
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {

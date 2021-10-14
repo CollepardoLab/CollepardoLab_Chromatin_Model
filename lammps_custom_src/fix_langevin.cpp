@@ -65,14 +65,14 @@ FixLangevin::FixLangevin(LAMMPS *lmp, int narg, char **arg) :
     tstr = new char[n];
     strcpy(tstr,&arg[3][2]);
   } else {
-    t_start = force->numeric(FLERR,arg[3]);
+    t_start = utils::numeric(FLERR, 0, arg[3], lmp);
     t_target = t_start;
     tstyle = CONSTANT;
   }
 
-  t_stop = force->numeric(FLERR,arg[4]);
-  t_period = force->numeric(FLERR,arg[5]);
-  seed = force->inumeric(FLERR,arg[6]);
+  t_stop = utils::numeric(FLERR, 0, arg[4], lmp);
+  t_period = utils::numeric(FLERR, 0, arg[5], lmp);
+  seed = utils::inumeric(FLERR, 0, arg[6], lmp);
 
   if (t_period <= 0.0) error->all(FLERR,"Fix langevin period must be > 0.0");
   if (seed <= 0) error->all(FLERR,"Illegal fix langevin command");
@@ -101,7 +101,7 @@ FixLangevin::FixLangevin(LAMMPS *lmp, int narg, char **arg) :
     if (strcmp(arg[iarg],"angmom") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix langevin command");
       if (strcmp(arg[iarg+1],"no") == 0) ascale = 0.0;
-      else ascale = force->numeric(FLERR,arg[iarg+1]);
+      else ascale = utils::numeric(FLERR, 0, arg[iarg+1], lmp);
       iarg += 2;
     } else if (strcmp(arg[iarg],"gjf") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix langevin command");
@@ -117,8 +117,8 @@ FixLangevin::FixLangevin(LAMMPS *lmp, int narg, char **arg) :
       iarg += 2;
     } else if (strcmp(arg[iarg],"scale") == 0) {
       if (iarg+3 > narg) error->all(FLERR,"Illegal fix langevin command");
-      int itype = force->inumeric(FLERR,arg[iarg+1]);
-      double scale = force->numeric(FLERR,arg[iarg+2]);
+      int itype = utils::inumeric(FLERR, 0, arg[iarg+1], lmp);
+      double scale = utils::numeric(FLERR, 0, arg[iarg+2], lmp);
       if (itype <= 0 || itype > atom->ntypes)
         error->all(FLERR,"Illegal fix langevin command");
       ratio[itype] = scale;
@@ -203,7 +203,7 @@ int FixLangevin::setmask()
   mask |= POST_FORCE;
   mask |= POST_FORCE_RESPA;
   mask |= END_OF_STEP;
-  mask |= THERMO_ENERGY;
+  mask |= thermo_energy;
   return mask;
 }
 

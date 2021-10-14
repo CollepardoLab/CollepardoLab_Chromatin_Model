@@ -44,7 +44,7 @@ class Neighbor : protected Pointers {
   double cut_middle_inside_sq;     // inner cutoff for middle neighbor list
 
   int binsizeflag;                 // user-chosen bin size
-  double binsize_user;             // set externally by some accelerator pkgs
+  double binsize_user;             // set externally by some accelerator pkgsf
 
   bigint ncalls;                   // # of times build has been called
   bigint ndanger;                  // # of dangerous builds
@@ -240,6 +240,16 @@ class Neighbor : protected Pointers {
 };
 
 namespace NeighConst {
+
+// Addded for forwards compatibility with new versions of LAMMPS
+  enum {
+    NB_STANDARD = 1 << 4,
+    NB_MULTI = 1 << 5,
+    NS_MULTI_OLD = 1 << 10,
+    NP_MULTI_OLD = 1 << 25
+  };
+  // TODO: this needs to be a derived class
+
   static const int NB_INTEL         = 1<<0;
   static const int NB_KOKKOS_DEVICE = 1<<1;
   static const int NB_KOKKOS_HOST   = 1<<2;
