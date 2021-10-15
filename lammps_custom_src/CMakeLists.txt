@@ -4,5 +4,4 @@
     pair_ljlambda.cpp
     pair_aniso.cpp
     fix_langevin.cpp
-    neighbor.cpp
 )

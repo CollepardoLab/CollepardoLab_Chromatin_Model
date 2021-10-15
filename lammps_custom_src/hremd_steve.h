@@ -54,6 +54,8 @@ class HremdSteve : protected Pointers {
   void scale_velocities(int, int);
   void print_status();
   void reset_velocities(double);
+  void hremd_modify_cutoff(double new_cutoff);
+  void force_reneighbor();
 };
 
 }

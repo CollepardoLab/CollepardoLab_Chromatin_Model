@@ -40,6 +40,7 @@
 using namespace LAMMPS_NS;
 
 //#define TEMPER_DEBUG
+#define BIG 1.0e20
 
 /* ---------------------------------------------------------------------- */
 
@@ -230,8 +231,9 @@ void HremdSteve::command(int narg, char **arg)
   if (narg == 8){
     double new_temp = set_temp[my_set_temp];
     mypair->change_kappa(new_temp);
-    lmp->neighbor->hremd_modify_cutoff(3.5/new_temp);
-    lmp->neighbor->force_rebuild_hremd=true;
+    hremd_modify_cutoff(3.5/new_temp);
+    //lmp->neighbor->force_rebuild_hremd=true; // deprecated
+    force_reneighbor();
   }
  
   timer->init();
@@ -391,8 +393,9 @@ void HremdSteve::command(int narg, char **arg)
       new_temp = set_temp[partner_set_temp];
       //modify->fix[whichfix]->reset_target(new_temp);
       mypair->change_kappa(new_temp);
-      lmp->neighbor->hremd_modify_cutoff(3.5/new_temp);
-      lmp->neighbor->force_rebuild_hremd=true;
+      hremd_modify_cutoff(3.5/new_temp);
+      force_reneighbor();
+      //lmp->neighbor->force_rebuild_hremd=true; // deprecated
       //reset_velocities(300.0);
       //did_i_swap = true;
     }
@@ -487,5 +490,48 @@ void HremdSteve::print_status()
       fprintf(universe->ulogfile," %d",world2temp[i]);
     fprintf(universe->ulogfile,"\n");
     fflush(universe->ulogfile);
+  }
+}
+
+
+/*---------------------------------------------------------------
+ * Added by steve, changes the cutoff used for use wioth hremd
+ * -------------------------------------------------------------*/
+
+void HremdSteve::hremd_modify_cutoff(double new_cutoff){
+  double cutoff,delta,cut;
+  neighbor->cutneighmin = BIG;
+  neighbor->cutneighmax = 0.0;
+  int n = atom->ntypes;
+  for (int i = 1; i <= n; i++) {
+    neighbor->cuttype[i] = neighbor->cuttypesq[i] = 0.0;
+    for (int j = 1; j <= n; j++) {
+      if (force->pair) cutoff = sqrt(force->pair->cutsq[i][j]);
+      else cutoff = 0.0;
+      if (cutoff > 0.0) delta = neighbor->skin;
+      else delta = 0.0;
+      cut = cutoff + delta;
+
+      neighbor->cutneighsq[i][j] = cut*cut;
+      neighbor->cuttype[i] = MAX(neighbor->cuttype[i],cut);
+      neighbor->cuttypesq[i] = MAX(neighbor->cuttypesq[i],cut*cut);
+      neighbor->cutneighmin = MIN(neighbor->cutneighmin,cut);
+      neighbor->cutneighmax = MAX(neighbor->cutneighmax,cut);
+
+      if (force->pair && force->pair->ghostneigh) {
+        cut = force->pair->cutghost[i][j] + neighbor->skin;
+        neighbor->cutneighghostsq[i][j] = cut*cut;
+      } else neighbor->cutneighghostsq[i][j] = cut*cut;
+    }
+  }
+  neighbor->cutneighmaxsq = neighbor->cutneighmax * neighbor->cutneighmax;
+}
+
+void HremdSteve::force_reneighbor(){
+  if (modify->nfix < 1){
+    error->all(FLERR,"Can't force reneighboring without a fix (note: can be a dummy fix)");
+  }
+  for (int i = 0; i < modify->nfix; i++){
+    modify->fix[i]->force_reneighbor = 1;
   }
 }
