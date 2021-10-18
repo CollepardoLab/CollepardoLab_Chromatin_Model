@@ -44,7 +44,7 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-HremdSteve::HremdSteve(LAMMPS *lmp) : Pointers(lmp) {}
+HremdSteve::HremdSteve(LAMMPS *lmp) : Command(lmp) {}
 
 /* ---------------------------------------------------------------------- */
 
@@ -72,9 +72,9 @@ void HremdSteve::command(int narg, char **arg)
   if (narg != 7 && narg != 8)
     error->universe_all(FLERR,"Illegal temper command");
 
-  int nsteps = utils::inumeric(FLERR, 0, arg[0], lmp);
-  nevery = utils::inumeric(FLERR, 0, arg[1], lmp);
-  double temp = utils::numeric(FLERR, 0, arg[2], lmp);
+  int nsteps = utils::inumeric(FLERR, arg[0], false, lmp);
+  nevery = utils::inumeric(FLERR, arg[1], false, lmp);
+  double temp = utils::numeric(FLERR, arg[2], false, lmp);
 
   // ignore temper command, if walltime limit was already reached
 
@@ -92,11 +92,11 @@ void HremdSteve::command(int narg, char **arg)
   //   error->universe_all(FLERR,"HremdSteveing fix ID is not defined");
 
 
-  seed_swap = utils::inumeric(FLERR, 0, arg[5], lmp);
-  seed_boltz = utils::inumeric(FLERR, 0, arg[6], lmp);
+  seed_swap = utils::inumeric(FLERR, arg[5], false, lmp);
+  seed_boltz = utils::inumeric(FLERR, arg[6], false, lmp);
 
   my_set_temp = universe->iworld;
-  if (narg == 8) my_set_temp = utils::inumeric(FLERR, 0, arg[7], lmp);
+  if (narg == 8) my_set_temp = utils::inumeric(FLERR, arg[7], false, lmp);
   if ((my_set_temp < 0) || (my_set_temp >= universe->nworlds))
     error->universe_one(FLERR,"Illegal temperature index");
 

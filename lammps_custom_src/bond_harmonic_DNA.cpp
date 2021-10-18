@@ -913,8 +913,8 @@ void BondHarmonic_DNA::coeff(int narg, char **arg)
   //double k_one = force->numeric(FLERR,arg[1]); // deprecated
   //double r0_one = force->numeric(FLERR,arg[2]); // deprecated
 
-  double k_one = utils::numeric(FLERR, 0, arg[1], lmp);
-  double r0_one = utils::numeric(FLERR, 0, arg[2], lmp);
+  double k_one = utils::numeric(FLERR, arg[1], false, lmp);
+  double r0_one = utils::numeric(FLERR, arg[2], false, lmp);
 
   int count = 0;
   for (int i = ilo; i <= ihi; i++) {

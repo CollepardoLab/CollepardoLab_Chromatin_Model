@@ -20,11 +20,11 @@ CommandStyle(hremd_steve,HremdSteve)
 #ifndef LMP_HREMD_STEVE_H
 #define LMP_HREMD_STEVE_H
 
-#include "pointers.h"
+#include "command.h"
 
 namespace LAMMPS_NS {
 
-class HremdSteve : protected Pointers {
+class HremdSteve : public Command {
  public:
   HremdSteve(class LAMMPS *);
   ~HremdSteve();
