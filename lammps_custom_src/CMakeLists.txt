@@ -3,6 +3,7 @@
     hremd_steve.cpp
     pair_ljlambda.cpp
     pair_aniso.cpp
-    fix_langevin.cpp
     chromatinplugin.cpp
 )
+
+install(TARGETS chromatin EXPORT chromatin_targets LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})

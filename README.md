@@ -1,41 +1,62 @@
+First, compile LAMMPS with the following options:
+cmake -D BUILD_SHARED_LIBS=yes -D BUILD_TOOLS=yes -D PKG_ASPHERE=yes -D PKG_RIGID=yes -D PKG_MOLECULE=yes -D PKG_PLUGIN=yes  ../cmake
+
+At the cmake stage, must provide the path to the lammps src
+cmake -DLAMMPS_HEADER_DIR=/home/rob/software/mylammps/src ../CollepardoLab_Chromatin_Model/
+make install
+
+Make sure the path to the shared library is on $LD_LIBRARY_PATH
+
+
 # Source code for "Nucleosome plasticity is a critical element of chromatin liquid–liquid phase separation and multivalent nucleosome interactions"
 
-We are delighted to share our model with the community. Please use it freely and cite our paper DOI:XXX (Preprint: https://doi.org/10.1101/2020.11.23.391599 ) . 
+We are delighted to share our model with the community. Please use it freely and cite our paper: https://doi.org/10.1038/s41467-021-23090-3 .
 We are happy to answer any questions and comments by email (rc597@cam.ac.uk), and welcome contributions for any updates.
-
-
-
 
 # System requirements
 
-Linux with C++ compilers with MPI. 
-Tested on: CSD3 peta-4 cluster (https://www.hpc.cam.ac.uk/systems/peta-4) with Intel 2017 compliers
-
+* Linux with C++ compilers (Intel and GCC tested)
+* CMake 3.13 or greater
+* LAMMPS (updated to Sep 29 2021) with MPI enabled
+Tested on: CSD3 peta-4 cluster (https://www.hpc.cam.ac.uk/systems/peta-4) with Intel 2017 compliers and Ubuntu 21.04 with GCC 10.3.0.
 
 # Installation guide
 
 ## To compile LAMMPS with our custom code
 
-1. clone a copy of LAMMPS
-> git clone https://github.com/lammps/lammps.git
+Download or compile a copy of LAMMPS with the following settings enabled:
 
-2. checkout stable version 3rd March 2020
-> cd lammps  
-> git checkout tags/stable_3Mar2020 -b stable  
+* `BUILD_SHARED_LIBS=yes`
+* `PKG_ASPHERE=yes`
+* `PKG_RIGID=yes`
+* `PKG_MOLECULE=yes`
+* `PKG_PLUGIN=yes`
 
-3. copy all our code from lammps_custom_code into lammps/src
+e.g. 
 
-4. move Makefile_DNA_mpi from lammps/src into lammps/src/MAKE
+```
+git clone https://github.com/lammps/lammps.git
+git checkout tags/stable_29Sep2021 -b stable  
+cd <path/to/lammps>
+mkdir build && cd build
+cmake -D BUILD_SHARED_LIBS=yes -D BUILD_TOOLS=yes -D PKG_ASPHERE=yes -D PKG_RIGID=yes -D PKG_MOLECULE=yes -D PKG_PLUGIN=yes  ../cmake
+make install
+```
+next, compile the LAMMPS plugin, giving it the path to the LAMMPS source folder:
 
-5. Install required lammps packages
->make yes-asphere  
->make yes-rigid  
->make yes-molecule  
+```
+git clone https://github.com/CollepardoLab/CollepardoLab_Chromatin_Model.git
+mkdir build && cd build
+cmake -DLAMMPS_HEADER_DIR=/<path/to/lammps>/src ../CollepardoLab_Chromatin_Model/
+make install
+```
 
-6. compile using our makefile, note this is for Intel compilers only
->make DNA_mpi  
+`make install` will compile a shared object file (chromatin.so) which LAMMPS will expect to find somewhere on `$LD_LIBRARY_PATH`. Depending on where it is installed to, you may need to `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:<path/to/chromatin.so>`. This plugin implements the following commands in LAMMPS:
 
-7. the executable will be lmp_DNA_mpi
+* `bond harmonic`
+* `hremd_steve`
+* `pair aniso`
+* `pair ljlambda`
 
 # Demo
 ## To run a single nucleosome system:
@@ -57,7 +78,6 @@ Visible molecular dynamics will be observable after a few minutes runtime on a s
 >mpirun -np 16 ./lmp_DNA_mpi -partition 16x1 -in in.hremd_breathing
     
 These simulations for both breathing and non-breathing will generate the trajectories for our main results in figures 3 and 4.
-
 
 ## To run minimal model coexistence simulation:
 

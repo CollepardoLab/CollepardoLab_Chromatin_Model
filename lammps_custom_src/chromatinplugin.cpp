@@ -3,7 +3,6 @@
 #include <cstring>
 
 #include "bond_harmonic_DNA.h"
-#include "fix_langevin.h"
 #include "hremd_steve.h"
 #include "pair_aniso.h"
 #include "pair_ljlambda.h"
@@ -14,11 +13,6 @@ using namespace LAMMPS_NS;
 static Bond *bondharmoniccreator(LAMMPS *lmp)
 {
   return new BondHarmonic_DNA(lmp);
-}
-
-static Fix *fixlangevincreator(LAMMPS *lmp, int argc, char **argv)
-{
-  return new FixLangevin(lmp,argc,argv);
 }
 
 static Command *hremdstevecreator(LAMMPS *lmp)
@@ -46,16 +40,9 @@ extern "C" void lammpsplugin_init(void *lmp, void *handle, void *regfunc)
   plugin.style = "bond";
   plugin.name = "harmonic/DNA";
   plugin.info = "DNA rigid basepair interaction";
-  plugin.author = "Steven Farr (maintained by Rob Welch)";
+  plugin.author = "Steven Farr";
   plugin.creator.v1 = (lammpsplugin_factory1 *) &bondharmoniccreator;
   plugin.handle = handle;
-  (*register_plugin)(&plugin, lmp);
-
-  // fix langevin
-  plugin.style = "fix";
-  plugin.name = "langevin";
-  plugin.info = "Langevin thermostat";
-  plugin.creator.v2 = (lammpsplugin_factory2 *) &fixlangevincreator;
   (*register_plugin)(&plugin, lmp);
 
   // REMD

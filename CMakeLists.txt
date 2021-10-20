@@ -1,57 +1,70 @@
-#set(CMAKE_VERBOSE_MAKEFILE ON)
-
  # Specify the minimum version for CMake
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.13)
 include(FetchContent)
-# Project's name
 
-#project(chromatin VERSION 1.0 DESCRIPTION "Source code for 'Nucleosome plasticity is a critical element of chromatin liquid–liquid phase separation and multivalent nucleosome interactions'.")
-project(chromatin C CXX Fortran)
+# enforce out-of-source build
+if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
+  message(FATAL_ERROR "In-source builds are not allowed. You must create and use a build directory. "
+    "Please remove CMakeCache.txt and CMakeFiles first.")
+endif()
 
-#list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+if(NOT LAMMPS_HEADER_DIR)
+  message(FATAL_ERROR "Must set LAMMPS_HEADER_DIR (e.g. cmake -DLAMMPS_HEADER_DIR=</path/to/lammps/src> <path/to/plugin/src>")
+endif()
+
+project(chromatin VERSION 1.0 LANGUAGES C CXX Fortran)
+
+# by default, install into $HOME/.local (not /usr/local),
+# so that no root access (and sudo) is needed
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/.local" CACHE PATH "Default install path" FORCE)
+endif()
+
+# C++11 is required
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Need -restrict with Intel compilers
+if((CMAKE_CXX_COMPILER_ID STREQUAL "Intel") OR (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM"))
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -restrict")
+endif()
+
+# bail out on windows
+if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+  message(FATAL_ERROR "LAMMPS plugins are currently not supported on Windows")
+endif()
+
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-
-#find_package(LAMMPS REQUIRED)
+include(CheckIncludeFileCXX)
+include(LAMMPSInterfaceCXX)
 find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH})
 include_directories(${LAMMPS_HEADER_DIR})
-
-#list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-#message("${CMAKE_MODULE_PATH}")
-#find_package(fmt REQUIRED)
-#include_directories(${FMT_INCLUDE_PATH})
-
-#FetchContent_Declare(fmt
-#  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-#  GIT_TAG master
-#)
-#FetchContent_MakeAvailable(fmt)
-
-if (${LAMMPS_FOUND})
-    message("Found LAMMPS")
-    message("${LAMMPS_INCLUDE_DIR}")
-    message("${LAMMPS_INCLUDES}")
-    message("${LAMMPS_LIBRARY}")
-    message("${LAMMPS_LIBS}")
-    message("${LAMMPS_LIBRARIES}")
-    message("${LAMMPS_VERSION_STRING}")
-endif(${LAMMPS_FOUND})
 
 # Style headers
 include(StyleHeaderUtils)
 RegisterStyles(${LAMMPS_HEADER_DIR})
 set(LAMMPS_STYLE_HEADERS_DIR ${CMAKE_CURRENT_BINARY_DIR}/styles)
 GenerateStyleHeaders(${LAMMPS_STYLE_HEADERS_DIR})
-#GeneratePackagesHeaders(${LAMMPS_STYLE_HEADERS_DIR})
 include_directories(${LAMMPS_STYLE_HEADERS_DIR})
 
 # Set the output folder where your program will be created
-#set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/bin)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR})
 set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR})
 
 # The following folder will be included
 add_subdirectory("${PROJECT_SOURCE_DIR}/lammps_custom_src")
-#include_directories("${PROJECT_SOURCE_DIR}/lammps_custom_src")
-
 target_include_directories(chromatin PRIVATE $ENV{HOME}/.local/include/lammps)
+target_include_directories(chromatin PRIVATE "${LAMMPS_HEADER_DIR}/OPENMP")
+target_link_libraries(chromatin PRIVATE lammps)
+
+set_target_properties(chromatin PROPERTIES
+                      PREFIX ""
+                      LINK_FLAGS "-rdynamic")
+
+# MacOS seems to need this
+if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  set_target_properties(chromatin PROPERTIES
+                        LINK_FLAGS "-Wl,-undefined,dynamic_lookup")
+
+endif()

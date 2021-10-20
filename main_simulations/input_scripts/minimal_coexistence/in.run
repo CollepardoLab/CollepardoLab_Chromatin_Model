@@ -1,3 +1,5 @@
+plugin load chromatin.so
+
 # VARIABLES
 variable fname index data_nonb.txt
 variable simname index dna
@@ -127,8 +129,8 @@ dump 3 all custom 20000 coords.dump id xu yu zu type
 
 
 comm_style tiled
-fix bl all balance 1000 1.0 rcb
 fix 1 nucl rigid/nve/small molecule
+fix bl all balance 1000 1.0 rcb
 fix 2 linker_dna  nve/asphere
 fix 3 linker_dna  langevin 1.0 1.0 0.1 123 angmom 3.0
 fix 4 nucl  langevin 1.0 1.0 0.1 123

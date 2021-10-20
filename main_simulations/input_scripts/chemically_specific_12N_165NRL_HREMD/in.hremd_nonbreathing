@@ -1,3 +1,5 @@
+plugin load chromatin.so
+
 variable I world A B C D E F G H I J K L M N O P
 variable a world 8.00 8.34 8.70 9.07 9.46 9.86 10.29 10.73 11.19 11.67 12.16 12.69 13.23 13.79 14.38 15.00
 variable l equal 1.0/${a}
@@ -43729,9 +43731,6 @@ thermo_style	custom step temp pe ecoul epair ebond ke etotal spcpu timeremain c_
 thermo 100
 
 
-fix bl all balance 1000 1.0 rcb
-
-
 # first minimise the tails
 
 fix 1 notdna nve
@@ -43776,12 +43775,14 @@ unfix 1
 unfix 2
 
 
+
+fix 2 notdna langevin 300.0 300.0 1000.0 123 gjf vfull
+fix 5 dna langevin 300.0 300.0 1000.0 123 angmom 3.0 gjf vfull
+#fix 6 nucl langevin 300.0 300.0 1000.0 123 gjf vfull
 fix 1 notdna nve
-fix 2 notdna langevin 300.0 300.0 1000.0 123 gjf yes
 fix 3 dna_all rigid/nve/small molecule
 #fix 4 nucl rigid  molecule
-fix 5 dna langevin 300.0 300.0 1000.0 123 angmom 3.0 gjf yes
-#fix 6 nucl langevin 300.0 300.0 1000.0 123 gjf yes
+fix bl all balance 1000 1.0 rcb
 
 fix C all recenter INIT INIT INIT
 

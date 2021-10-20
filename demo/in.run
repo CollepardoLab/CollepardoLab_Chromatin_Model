@@ -1,3 +1,5 @@
+plugin load chromatin.so
+
 variable fname index nucl.txt
 variable simname index nucl
 
@@ -7,7 +9,7 @@ variable Q equal 3.5*${a}
 
 # Initialization
 units real
-atom_style   hybrid ellipsoid angle charge
+atom_style hybrid ellipsoid angle charge
 
 boundary s s s
 
@@ -4234,11 +4236,6 @@ comm_style tiled
 thermo_style	custom step temp pe epair ebond ke etotal spcpu
 thermo 1000
 
-fix bl all balance 1000 1.0 rcb
-
-
-
-fix bl all balance 1000 1.0 rcb
 
 # minimize first
 
@@ -4283,12 +4280,15 @@ run 1000
 unfix 1
 unfix 2
 
-
-fix 1 notdna nve
-fix 2 notdna langevin 300.0 300.0 1000.0 123 gjf yes
-fix 3 dna_all rigid/nve/small molecule
+fix 2 notdna langevin 300.0 300.0 1000.0 123 gjf vfull
+fix 2 notdna langevin 300.0 300.0 100000.0 123 gjf vfull
+fix 4 dna langevin 300.0 300.0 100000.0 123 angmom 3.0
 fix 4 dna langevin 300.0 300.0 1000.0 123 angmom 3.0 
+fix 1 notdna nve
+fix 3 dna_all rigid/nve/small molecule
 
+fix bl all balance 1000 1.0 rcb
+fix bl all balance 1000 1.0 rcb
 
 #fix C all recenter INIT INIT INIT
 
@@ -4299,8 +4299,7 @@ timestep 10.0
 #reset_timestep 0
 
 
-fix 2 notdna langevin 300.0 300.0 100000.0 123 gjf yes
-fix 4 dna langevin 300.0 300.0 100000.0 123 angmom 3.0
+
 
 timestep 40.0
 
