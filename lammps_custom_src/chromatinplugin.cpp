@@ -7,6 +7,7 @@
 #include "pair_aniso.h"
 #include "pair_ljlambda.h"
 #include "command.h"
+#include "temper_2.h"
 
 using namespace LAMMPS_NS;
 
@@ -30,6 +31,11 @@ static Pair *pairljlambdacreator(LAMMPS *lmp)
   return new PairLJLambda(lmp);
 }
 
+static Command *temper2creator(LAMMPS *lmp)
+{
+	return new Temper2(lmp);
+}
+
 extern "C" void lammpsplugin_init(void *lmp, void *handle, void *regfunc)
 {
   lammpsplugin_t plugin;
@@ -48,7 +54,7 @@ extern "C" void lammpsplugin_init(void *lmp, void *handle, void *regfunc)
   // REMD
   plugin.style = "command";
   plugin.name = "hremd_steve";
-  plugin.info = "Replica-exchange molecular dynamics";
+  plugin.info = "Hamiltonian replica-exchange molecular dynamics";
   plugin.creator.v1 = (lammpsplugin_factory1 *) &hremdstevecreator;
   (*register_plugin)(&plugin, lmp);
 
@@ -63,6 +69,13 @@ extern "C" void lammpsplugin_init(void *lmp, void *handle, void *regfunc)
   plugin.style = "pair";
   plugin.name = "ljlambda";
   plugin.info = "Lennard-jones interaction with switching function";
+  plugin.creator.v1 = (lammpsplugin_factory1 *) &pairljlambdacreator;
+  (*register_plugin)(&plugin, lmp);
+
+  // Temper2
+  plugin.style = "command";
+  plugin.name = "temper2";
+  plugin.info = "Temperature replia-exchange molecular dynamics for 2 thermostats";
   plugin.creator.v1 = (lammpsplugin_factory1 *) &pairljlambdacreator;
   (*register_plugin)(&plugin, lmp);
 }

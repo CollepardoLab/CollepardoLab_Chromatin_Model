@@ -32,9 +32,11 @@ BondStyle(harmonic/DNA,BondHarmonic_DNA)
 #include <cstdio>
 #include "bond.h"
 #include "atom_vec_ellipsoid.h"
+#include "math_extra.h"
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <cmath>
 
 // Conversion factor for helical paramters
 // They are in Kcal/mol/Angstrom which agree with lammps "real" units
@@ -87,11 +89,29 @@ protected:
 
   // math functions
 
+  double almost_equal(double x, double y, int ulp);
   double arcos(double x);
   double vec_dot_mat_dot_vec(const double * vec, double mat[6][6]);
   void rotation(const double *x, double *y, double *axis, double angle);
   void compute_helical_parameters(const double * x1, const double * ex1_in, const double * ey1_in, const double * ez1_in, const double * x2, const double * ex2_in, const double * ey2_in,const  double * ez2_in, double * out,double * mstx_out, double * msty_out, double * mstz_out);
   double mag_vec(const double * v);
+  double angle_diff(double a, double b);
+  void Rmat_from_axis_angle(double Rmat[3][3], double * axis, double angle);
+
+
+  // precomputed constants
+  const double h = 0.01;
+  const double inv2h = 1.0/(2.0*h);
+  const double invh = 1.0/h;
+  double q_rot_x[4]  = {cos( h*0.5),sin( h*0.5),0,0};
+  double q_rot_nx[4] = {cos(-h*0.5),sin(-h*0.5),0,0};
+  double q_rot_y[4]  = {cos( h*0.5),0,sin( h*0.5),0};
+  double q_rot_ny[4] = {cos(-h*0.5),0,sin(-h*0.5),0};
+  double q_rot_z[4]  = {cos( h*0.5),0,0,sin( h*0.5)};
+  double q_rot_nz[4] = {cos(-h*0.5),0,0,sin(-h*0.5)};
+
+
+  int check = 0; //temporary
 
   };
 

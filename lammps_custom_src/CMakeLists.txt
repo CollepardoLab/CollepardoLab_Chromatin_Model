@@ -4,6 +4,7 @@
     pair_ljlambda.cpp
     pair_aniso.cpp
     chromatinplugin.cpp
+    temper_2.cpp
 )
 
 install(TARGETS chromatin EXPORT chromatin_targets LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})

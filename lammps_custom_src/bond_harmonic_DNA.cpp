@@ -37,10 +37,13 @@
 //#include "math_vector.h"
 #include <fstream>
 #include <sstream>
+#include <limits>
+#include <iomanip>
 //#define PRINT_DEBUG
 //#define NAN_DEBUG
 //#define BOND_ORDER_DEBUG
 //#define SLIDE_DEBUG
+#define Q_PRINT
 
 using namespace LAMMPS_NS;
 
@@ -48,6 +51,18 @@ using namespace LAMMPS_NS;
 /* ----------------------------------------------------------------------
    Functions added by S.Farr 2018
 -------------------------------------------------------------------------*/
+
+double BondHarmonic_DNA::almost_equal(double x, double y, int ulp=4){
+    //https://en.cppreference.com/w/cpp/types/numeric_limits/epsilon
+
+    // the machine epsilon has to be scaled to the magnitude of the values used
+    // and multiplied by the desired precision in ULPs (units in the last place)
+    return std::fabs(x-y) <= std::numeric_limits<double>::epsilon() * std::fabs(x+y) * ulp
+        // unless the result is subnormal
+        || std::fabs(x-y) < std::numeric_limits<double>::min();
+}
+ 
+
 
 // modified guarded acos function incase it receives
 // 1.0000000000000001 or similar
@@ -58,6 +73,21 @@ double BondHarmonic_DNA::arcos(double x){
     x=-1.0;
   }
   return acos(x);
+}
+
+/// computes b-a, returned angle is between -180 and 180
+/// @params:
+///  a angle in degrees
+///  b angle in degrees
+/// @returns:
+///  b-a
+///  
+double BondHarmonic_DNA::angle_diff(double a, double b){
+    double d = fmod(b-a+180.0,360.0);
+    if(d < 0.0){
+        d += 360;
+    }
+    return d-180.0;
 }
 
 double BondHarmonic_DNA::mag_vec(const double * v){
@@ -104,6 +134,31 @@ void BondHarmonic_DNA::rotation(const double *x, double *y, double *axis, double
 
 }
 
+/// fill in Rmat as the rotation matrix corresponding to "angle" about "axis"
+/// R = I + (sin(a))K + (1-cos(a))K^2
+/// Kv = k x v where v is a vector
+/// axis should be a unit vector
+void BondHarmonic_DNA::Rmat_from_axis_angle(double Rmat[3][3], double *axis, double angle){
+  double K[3][3] = {{0, -axis[2],axis[1]},{axis[2],0,-axis[0]},{-axis[1],axis[0],0}};
+
+  double I[3][3] = {{1,0,0},{0,1,0},{0,0,1}};
+
+  double cosa = cos(angle);
+  double sina = sin(angle);
+
+  double K2[3][3];
+
+  MathExtra::times3(K,K,K2);
+
+  MathExtra::scalar_times3((1.0-cosa),K2);
+  MathExtra::scalar_times3(sina,K);
+  
+  double temp[3][3];
+
+  MathExtra::plus3(K,K2,temp);
+
+  MathExtra::plus3(I,temp,Rmat);
+}
 
 /// Computes the energy of the bonds
 /// @params:
@@ -142,9 +197,20 @@ double BondHarmonic_DNA::compute_bond_energy(const double * x1, double * q1, con
   dQ[0] = Q[0] - helical_params->means[0];
   dQ[1] = Q[1] - helical_params->means[1];
   dQ[2] = Q[2] - helical_params->means[2];
-  dQ[3] = Q[3] - helical_params->means[3];
-  dQ[4] = Q[4] - helical_params->means[4];
-  dQ[5] = Q[5] - helical_params->means[5];
+  dQ[3] =  angle_diff(helical_params->means[3], Q[3]);
+  dQ[4] =  angle_diff(helical_params->means[4], Q[4]);
+  dQ[5] =  angle_diff(helical_params->means[5], Q[5]);
+
+#ifdef Q_PRINT
+  if (check%5000 == 0){
+    std::cout << "dQ: ";
+    for (int a=0; a<6; ++a){
+      std::cout << dQ[a] << " ";
+    }
+    std::cout << std::endl;
+  }
+  ++check;
+#endif
 
   double U = vec_dot_mat_dot_vec(dQ, helical_params->K)*0.5*E_CONV_FACTOR_STEVE;
   
@@ -170,7 +236,7 @@ double BondHarmonic_DNA::compute_bond_energy(const double * x1, double * q1, con
 /// http://doi.org/10.1006/jmbi.1997.1346.
 void BondHarmonic_DNA::compute_helical_parameters(const double * x1, const double * ex1_in, const double * ey1_in, const double * ez1_in, const double * x2, const double * ex2_in, const double * ey2_in,const  double * ez2_in, double * out,double * mstx_out, double * msty_out, double * mstz_out){
 
-
+  //std::cout << "here" << std::endl;
 
   double ex1[3] = {ex1_in[0], ex1_in[1], ex1_in[2]};
   double ex2[3] = {ex2_in[0], ex2_in[1], ex2_in[2]};
@@ -180,66 +246,96 @@ void BondHarmonic_DNA::compute_helical_parameters(const double * x1, const doubl
   double ez2[3] = {ez2_in[0], ez2_in[1], ez2_in[2]};
 
 
-
-
-
-  // calculate the roll-tilt angle and axis
-  // rt = ez1 x ez2
-  // note if ez's are parallel this operation will not work
-  double rt[3];
-  double gamma;
-
   double mstx[3],msty[3],mstz[3];
   double omega,twist,phi,roll,tilt,Dx,Dy,Dz;
-  double temp[3];
 
-  MathExtra::cross3(ez1,ez2,rt);
 
-  if((rt[0]*rt[0] + rt[1]*rt[1] + rt[2]*rt[2]) > 0.0){
-#ifdef PRINT_DEBUG
-    std::cout << "1" << std::endl;
-#endif
+  // check for special cases, the standard algorithm does not work if the z axis are parallel
+
+  double zdotz = MathExtra::dot3(ez1,ez2)/(mag_vec(ez1)*mag_vec(ez2));
+
+  //std::cout << std::setprecision(15);
+
+  //std::cout << "z.z == " << zdotz << std::endl;
+
+  // normal procedure
+  if ( !almost_equal(zdotz,1.0))   {
+    // calculate the roll-tilt angle and axis
+    // rt = ez1 x ez2
+    // note if ez's are parallel this operation will not work
+    double rt[3];
+    double gamma;
+    double temp[3];
+
+    MathExtra::cross3(ez1,ez2,rt);
+
+   
+
+
+    if (almost_equal(mag_vec(rt),0.0)){
+      error->all(FLERR,"|rt| axis==0");
+    }
+
+
     gamma = arcos(MathExtra::dot3(ez1,ez2)/(mag_vec(ez1)*mag_vec(ez2)));
 
     MathExtra::norm3(rt);
 
+    //std::cout << "rt == " << rt[0] << ","<< rt[1]<<","<<rt[2] << std::endl;
     // rotate bp1 by gamma/2 about rt, and bp2 by -gamma/2 about rt.
 
-    rotation(ex1, ex1, rt, gamma*0.5);
-    rotation(ey1, ey1, rt, gamma*0.5);
-    rotation(ez1, ez1, rt, gamma*0.5);
 
-    rotation(ex2, ex2, rt, -gamma*0.5);
-    rotation(ey2, ey2, rt, -gamma*0.5);
-    rotation(ez2, ez2, rt, -gamma*0.5);
+    double R1[3][3];
+    double R2[3][3];
+
+    Rmat_from_axis_angle(R1,rt,gamma*0.5);
+    Rmat_from_axis_angle(R2,rt,-gamma*0.5);
+
+    double ex1_rot[3];
+    double ex2_rot[3];
+    double ey1_rot[3];
+    double ey2_rot[3];
+    double ez1_rot[3];
+    double ez2_rot[3];
+
+    MathExtra::matvec(R1,ex1,ex1_rot);
+    MathExtra::matvec(R1,ey1,ey1_rot);
+    MathExtra::matvec(R1,ez1,ez1_rot);
+    MathExtra::matvec(R2,ex2,ex2_rot);
+    MathExtra::matvec(R2,ey2,ey2_rot);
+    MathExtra::matvec(R2,ez2,ez2_rot);
+
+
+    memcpy(ex1,ex1_rot,sizeof(ex1));
+    memcpy(ex2,ex2_rot,sizeof(ex2));
+    memcpy(ey1,ey1_rot,sizeof(ey1));
+    memcpy(ey2,ey2_rot,sizeof(ey2));
+    memcpy(ez1,ez1_rot,sizeof(ez1));
+    memcpy(ez2,ez2_rot,sizeof(ez2));
+
+    // rotation(ex1, ex1, rt, gamma*0.5);
+    // rotation(ey1, ey1, rt, gamma*0.5);
+    // rotation(ez1, ez1, rt, gamma*0.5);
+
+    // rotation(ex2, ex2, rt, -gamma*0.5);
+    // rotation(ey2, ey2, rt, -gamma*0.5);
+    // rotation(ez2, ez2, rt, -gamma*0.5);
 
     // make sure they are normalised
     MathExtra::norm3(ex1);
     MathExtra::norm3(ey1);
     MathExtra::norm3(ez1);
+
     MathExtra::norm3(ex2);
     MathExtra::norm3(ey2);
     MathExtra::norm3(ez2);
 
-    //direction of the MST axis obtained by averaging and normalising the
-    //rotated base pair triads
-    mstx[0]=(ex1[0] + ex2[0])*0.5;
-    mstx[1]=(ex1[1] + ex2[1])*0.5;
-    mstx[2]=(ex1[2] + ex2[2])*0.5;
-
-
-    msty[0]=(ey1[0] + ey2[0])*0.5;
-    msty[1]=(ey1[1] + ey2[1])*0.5;
-    msty[2]=(ey1[2] + ey2[2])*0.5;
 
 
     mstz[0]=(ez1[0] + ez2[0])*0.5;
     mstz[1]=(ez1[1] + ez2[1])*0.5;
     mstz[2]=(ez1[2] + ez2[2])*0.5;
 
-
-    MathExtra::norm3(mstx);
-    MathExtra::norm3(msty);
     MathExtra::norm3(mstz);
 
     //twist, omega, is the angle between the two transformed y axes
@@ -249,15 +345,47 @@ void BondHarmonic_DNA::compute_helical_parameters(const double * x1, const doubl
 
     //sign control
 
-
-
     MathExtra::cross3(ey1,ey2,temp);
-    if ( MathExtra::dot3(temp,mstz)<0.0) omega = -omega;
+    if ( MathExtra::dot3(temp,mstz)<0.0){ omega = -omega;}
 
     twist = omega;
 
-    // the angle between rt axis and msty axis is phi
 
+    //direction of the MST axis obtained by averaging and normalising the
+    //rotated base pair triads
+    // mstx[0]=(ex1[0] + ex2[0])*0.5;
+    // mstx[1]=(ex1[1] + ex2[1])*0.5;
+    // mstx[2]=(ex1[2] + ex2[2])*0.5;
+
+
+    // msty[0]=(ey1[0] + ey2[0])*0.5;
+    // msty[1]=(ey1[1] + ey2[1])*0.5;
+    // msty[2]=(ey1[2] + ey2[2])*0.5;
+
+    // std::cout << "mstx == " << mstx[0] << ","<< mstx[1]<<","<<mstx[2] << std::endl;
+    // std::cout << "msty == " << msty[0] << ","<< msty[1]<<","<<msty[2] << std::endl;
+
+    // check the msts are calculated correctly, they will not be if xi and xj are antiparallel
+    //if( almost_equal(fabs(mstx[0]) + fabs(mstx[1]) + fabs(mstx[2]),0.0)){
+    //  std::cout << "|mtx| == 0" << std::endl;
+    rotation(ex1,mstx,mstz,twist*0.5);
+    //}
+    //if( almost_equal(fabs(msty[0]) + fabs(msty[1]) + fabs(msty[2]),0.0)){
+    //  std::cout << "|mty| == 0" << std::endl;
+    rotation(ey1,msty,mstz,twist*0.5);
+    //}
+
+    //std::cout << "mstx == " << mstx[0] << ","<< mstx[1]<<","<<mstx[2] << std::endl;
+    //std::cout << "msty == " << msty[0] << ","<< msty[1]<<","<<msty[2] << std::endl;
+
+    MathExtra::norm3(mstx);
+    MathExtra::norm3(msty);
+
+
+    //std::cout << "mstx == " << mstx[0] << ","<< mstx[1]<<","<<mstx[2] << std::endl;
+    //std::cout << "msty == " << msty[0] << ","<< msty[1]<<","<<msty[2] << std::endl;
+
+    // the angle between rt axis and msty axis is phi
     phi = arcos(MathExtra::dot3(rt,msty)/(mag_vec(rt)*mag_vec(msty)));
 
     //sign control
@@ -265,11 +393,10 @@ void BondHarmonic_DNA::compute_helical_parameters(const double * x1, const doubl
     if( MathExtra::dot3(temp,mstz)<0.0){ phi = - phi;}
 
     //roll and tilt
-
     roll = gamma*cos(phi);
     tilt = gamma*sin(phi);
 
-    //shift, slide, rise are the components of the relative displacement ofinline void copy3(const double *v, double *ans);
+    //shift, slide, rise are the components of the relative displacement of
     //the two base pairs triads along the x,y,z, axes of the mst
     //Di = (r2 - r1).msti
 
@@ -281,40 +408,60 @@ void BondHarmonic_DNA::compute_helical_parameters(const double * x1, const doubl
     Dy = MathExtra::dot3(temp, msty);
     Dz = MathExtra::dot3(temp, mstz);
 
-  }else{
-#ifdef PRINT_DEBUG
-    std::cout << "special" << std::endl;
-#endif
+
+  }
+  // if z.z is 1 then they are parallel
+  else if ( almost_equal(zdotz, 1.0) ){
+
+    // std::cout << "z parallel "<<  std::endl;
+
+    
+    double temp[3];
+
     //special case
     //roll-tilt angle is zero, cannot define rolltilt axis by rt=z1xz2
     // roll and tilt are zero:
     roll = 0.0;
     tilt = 0.0;
 
-    //twist is the angle between the two y axes and x axis
-    twist = arcos(MathExtra::dot3(ex1,ex2)/(mag_vec(ex1)*mag_vec(ex2)));
-
-
-
-    mstx[0]=(ex1[0] + ex2[0])*0.5;
-    mstx[1]=(ex1[1] + ex2[1])*0.5;
-    mstx[2]=(ex1[2] + ex2[2])*0.5;
-
-
-    msty[0]=(ey1[0] + ey2[0])*0.5;
-    msty[1]=(ey1[1] + ey2[1])*0.5;
-    msty[2]=(ey1[2] + ey2[2])*0.5;
-
 
     mstz[0]=(ez1[0] + ez2[0])*0.5;
     mstz[1]=(ez1[1] + ez2[1])*0.5;
     mstz[2]=(ez1[2] + ez2[2])*0.5;
+    
+    MathExtra::norm3(mstz);
+    
 
+    //twist, omega, is the angle between the two transformed y axes
+    omega = arcos(MathExtra::dot3(ey1, ey2)/(mag_vec(ey1)*mag_vec(ey2)));
+
+    //sign control
+    MathExtra::cross3(ey1,ey2,temp);
+    if ( MathExtra::dot3(temp,mstz)<0.0){ omega = -omega;}
+
+    twist = omega;
+
+    // extra special case, if zs are parallel and twist = 180.0 or -180.0 degrees
+    //if (fabs(fabs(twist) - MathConst::MY_PI)< tolerance){
+
+    //  std::cout << "z parallel and x antiparallel"<< std::endl;
+
+    rotation(ex1,mstx,mstz,twist*0.5);
+    rotation(ey1,msty,mstz,twist*0.5);
+
+    //}else{
+
+    //   mstx[0]=(ex1[0] + ex2[0])*0.5;
+    //   mstx[1]=(ex1[1] + ex2[1])*0.5;
+    //   mstx[2]=(ex1[2] + ex2[2])*0.5;
+
+    //   msty[0]=(ey1[0] + ey2[0])*0.5;
+    //   msty[1]=(ey1[1] + ey2[1])*0.5;
+    //   msty[2]=(ey1[2] + ey2[2])*0.5;
+    // }
 
     MathExtra::norm3(mstx);
     MathExtra::norm3(msty);
-    MathExtra::norm3(mstz);
-
 
     temp[0] = x2[0] - x1[0];
     temp[1] = x2[1] - x1[1];
@@ -323,7 +470,17 @@ void BondHarmonic_DNA::compute_helical_parameters(const double * x1, const doubl
     Dx = MathExtra::dot3(temp, mstx);
     Dy = MathExtra::dot3(temp, msty);
     Dz = MathExtra::dot3(temp, mstz);
+
   }
+  // if z.z is -1 then they are antiparallel
+  else if( almost_equal(zdotz,-1.0) ){
+
+    // should not be here
+    error->all(FLERR,"z axis antiparallel in helical param calculation, not yet implemented");
+
+  }
+
+  // fill in the output arrays
 
   out[0] = Dx;
   out[1] = Dy;
@@ -332,31 +489,19 @@ void BondHarmonic_DNA::compute_helical_parameters(const double * x1, const doubl
   out[4] = 180.0/MathConst::MY_PI*roll;
   out[5] = 180.0/MathConst::MY_PI*twist;
 
-#ifdef NAN_DEBUG
-
-  for(int a=0;a<6;++a){
-    if(isnan(out[a])){
-      std::cout << a << std::endl;
-      exit(1);
-    }
-  }
-#endif
-
+  //std::cout << "HP:"<< out[0] <<","<<out[1]<<","<<out[2]<<","<<out[3]<<","<<out[4]<<","<<out[5]<<std::endl;
 
   mstx_out[0]=mstx[0];
   mstx_out[1]=mstx[1];
   mstx_out[2]=mstx[2];
 
-
   msty_out[0]=msty[0];
   msty_out[1]=msty[1];
   msty_out[2]=msty[2];
 
-
   mstz_out[0]=mstz[0];
   mstz_out[1]=mstz[1];
   mstz_out[2]=mstz[2];
-
 
 }
 
@@ -552,9 +697,11 @@ void BondHarmonic_DNA::compute(int eflag, int vflag)
     dQ[0] = Q[0] - bond_helical_params.means[0];
     dQ[1] = Q[1] - bond_helical_params.means[1];
     dQ[2] = Q[2] - bond_helical_params.means[2];
-    dQ[3] = Q[3] - bond_helical_params.means[3];
-    dQ[4] = Q[4] - bond_helical_params.means[4];
-    dQ[5] = Q[5] - bond_helical_params.means[5];
+    
+    // be carefule with angles
+    dQ[3] = angle_diff(bond_helical_params.means[3], Q[3]);
+    dQ[4] = angle_diff(bond_helical_params.means[4], Q[4]);
+    dQ[5] = angle_diff(bond_helical_params.means[5], Q[5]);
 
     // K*dQ
     double KdQ[6];
@@ -585,32 +732,11 @@ void BondHarmonic_DNA::compute(int eflag, int vflag)
     double U = compute_bond_energy(x[i1],quat1, x[i2], quat2, &bond_helical_params);
 
     //std::cout << U <<  "    " << U_new << std::endl;
-    double h = 0.00001;
-    double inv2h = 1.0/(2.0*h);
-    double invh = 1.0/h;
 
 
     // compute the central difference 
     // T = V'(x) = [V(x+h) - V(x-h)]/2h
    
-
-
-    double q_rot_x[4]  = {cos( h*0.5),sin( h*0.5),0,0};
-    double q_rot_nx[4] = {cos(-h*0.5),sin(-h*0.5),0,0};
-    double q_rot_y[4]  = {cos( h*0.5),0,sin( h*0.5),0};
-    double q_rot_ny[4] = {cos(-h*0.5),0,sin(-h*0.5),0};
-    double q_rot_z[4]  = {cos( h*0.5),0,0,sin( h*0.5)};
-    double q_rot_nz[4] = {cos(-h*0.5),0,0,sin(-h*0.5)};
-
-
-    MathExtra::qnormalize(q_rot_x);
-    MathExtra::qnormalize(q_rot_nx);
-    MathExtra::qnormalize(q_rot_y);
-    MathExtra::qnormalize(q_rot_ny);
-    MathExtra::qnormalize(q_rot_z);
-    MathExtra::qnormalize(q_rot_nz);
-
-
     double q1_h_px[4];
     double q1_h_nx[4];
     double q1_h_py[4];
@@ -935,6 +1061,14 @@ void BondHarmonic_DNA::init_style() {
 //  // read in the data we need
   get_helical_param_map("NAFlex_params.txt");
   get_basepairs("DNA_sequence.txt");
+
+  MathExtra::qnormalize(q_rot_x);
+  MathExtra::qnormalize(q_rot_nx);
+  MathExtra::qnormalize(q_rot_y);
+  MathExtra::qnormalize(q_rot_ny);
+  MathExtra::qnormalize(q_rot_z);
+  MathExtra::qnormalize(q_rot_nz);
+  
 }
 
 void BondHarmonic_DNA::get_helical_param_map(std::string fname){
@@ -1024,10 +1158,13 @@ void BondHarmonic_DNA::get_helical_param_map(std::string fname){
     helical_params_map.insert({type, read_params});
 
   }
-  if (k < 16) {
-    std::cerr << "Read in less than the expected 16 helical parameter types\nProgram may not run correctly"
-              << std::endl;
-  }
+  //if (k < 16) {
+    //std::cerr << "Read in less than the expected 16 helical parameter types\nProgram may not run correctly"
+    //          << std::endl;
+    //if (me==0){
+      std::cout << "read in " << k << " helical parameter sets" << std::endl;
+    //}
+  //}
 
   infile.close();
 
@@ -1123,7 +1260,7 @@ double BondHarmonic_DNA::single(int type, double rsq, int i, int j,
   double rk = k[type] * dr;
   fforce = 0;
   if (r > 0.0) fforce = -2.0*rk/r;
-  std::cout << "here" << std::endl;
+  std::cout << "Should not be here" << std::endl;
   exit(1);
   return rk*dr;
 }
