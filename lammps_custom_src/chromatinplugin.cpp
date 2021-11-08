@@ -8,6 +8,8 @@
 #include "pair_ljlambda.h"
 #include "command.h"
 #include "temper_2.h"
+#include "temper_2_mod.h"
+#include "RIGID/fix_rigid_nve_small.h"
 
 using namespace LAMMPS_NS;
 
@@ -34,6 +36,16 @@ static Pair *pairljlambdacreator(LAMMPS *lmp)
 static Command *temper2creator(LAMMPS *lmp)
 {
 	return new Temper2(lmp);
+}
+
+static Command *temper2modcreator(LAMMPS *lmp)
+{
+	return new Temper2Mod(lmp);
+}
+
+static Fix *rigidnvesmallcreator(LAMMPS *lmp, int argc, char **argv)
+{
+  return new FixRigidNVESmall(lmp,argc,argv);
 }
 
 extern "C" void lammpsplugin_init(void *lmp, void *handle, void *regfunc)
@@ -76,6 +88,22 @@ extern "C" void lammpsplugin_init(void *lmp, void *handle, void *regfunc)
   plugin.style = "command";
   plugin.name = "temper2";
   plugin.info = "Temperature replia-exchange molecular dynamics for 2 thermostats";
-  plugin.creator.v1 = (lammpsplugin_factory1 *) &pairljlambdacreator;
+  plugin.creator.v1 = (lammpsplugin_factory1 *) &temper2creator;
   (*register_plugin)(&plugin, lmp);
+
+  // Temper2Mod
+  plugin.style = "command";
+  plugin.name = "temper2_mod";
+  plugin.info = "Temperature replia-exchange molecular dynamics for 2 thermostats (corrected rigid body angular velocities)";
+  plugin.creator.v1 = (lammpsplugin_factory1 *) &temper2modcreator;
+  (*register_plugin)(&plugin, lmp);
+
+  // FixRigidNVESmall
+  //plugin.style = "fix";
+  //plugin.name = "rigid/nve/small";
+  //plugin.info = "Modified rigid fix";
+  //plugin.author = "Trung Nguyen";
+  //plugin.creator.v2 = (lammpsplugin_factory2 *) &rigidnvesmallcreator;
+  //(*register_plugin)(&plugin, lmp);
+
 }

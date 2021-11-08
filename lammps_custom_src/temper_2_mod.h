@@ -13,21 +13,25 @@
 
 #ifdef COMMAND_CLASS
 
-CommandStyle(temper2_mod,Temper2)
+CommandStyle(temper2_mod,Temper2Mod)
 
 #else
 
-#ifndef LMP_TEMPER2_H
-#define LMP_TEMPER2_H
+#ifndef LMP_TEMPER2_MOD_H
+#define LMP_TEMPER2_MOD_H
 
 #include "command.h"
+#include "RIGID/fix_rigid_small.h"
 
 namespace LAMMPS_NS {
 
-class Temper2 : public Command {
+class FixRigidSmall; // defined in RIGID/fix_rigid_small.h
+
+class Temper2Mod : public Command {
+ 
  public:
-  Temper2(class LAMMPS *);
-  ~Temper2();
+  Temper2Mod(class LAMMPS *);
+  ~Temper2Mod();
   void command(int, char **);
 
  private:
@@ -42,9 +46,11 @@ class Temper2 : public Command {
   int seed_boltz;              // seed for Boltz factor comparison
   int whichfix;                // index of temperature fix to use
   int whichfix2; // S FARR                // index of temperature fix to use
+  int whichfixRigid;
   int fixstyle;                // what kind of temperature fix is used
   int fixstyle2; // S FARR                // what kind of temperature fix is used
-
+  int fixstyleRigid;
+  FixRigidSmall  * fix_rigid_ptr;
   int my_set_temp;             // which set temp I am simulating
   double *set_temp;            // static list of replica set temperatures
   int *temp2world;             // temp2world[i] = world simulating set temp i
