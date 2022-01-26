@@ -19,7 +19,7 @@
 ------------------------------------------------------------------------- */
 
 #include "fix_rigid_nve_small.h"
-#include <iostreams>
+#include <iostream>
 
 using namespace LAMMPS_NS;
 
