@@ -36,8 +36,8 @@ e.g.
 
 ```
 git clone https://github.com/lammps/lammps.git
-git checkout tags/stable_29Sep2021 -b stable  
 cd <path/to/lammps>
+git checkout tags/stable_29Sep2021 -b stable  
 mkdir build && cd build
 cmake -D BUILD_SHARED_LIBS=yes -D BUILD_TOOLS=yes -D PKG_ASPHERE=yes -D PKG_RIGID=yes -D PKG_MOLECULE=yes -D PKG_PLUGIN=yes  ../cmake
 make install
@@ -46,6 +46,8 @@ next, compile the LAMMPS plugin, giving it the path to the LAMMPS source folder:
 
 ```
 git clone https://github.com/CollepardoLab/CollepardoLab_Chromatin_Model.git
+cd <path/to/Collepardo Chromatin Model>
+git checkout plugin-dev
 mkdir build && cd build
 cmake -DLAMMPS_HEADER_DIR=/<path/to/lammps>/src ../CollepardoLab_Chromatin_Model/
 make install
@@ -63,7 +65,7 @@ make install
 1. move to the "demo" directory
     
 2. run with lammps
->mpirun -np 1 ./lmp_DNA_mpi -in in.run  
+>mpirun -np 1 ./lmp -in in.run  
     
 It will produce a LAMMPS trajectory file "dna.dump" this can be viewed in Ovito (https://www.ovito.org/)
 
@@ -75,7 +77,7 @@ Visible molecular dynamics will be observable after a few minutes runtime on a s
 1. The files are in main_simulations/input_scripts/chemically_specific_12N_165NRL_HREMD. The lammps input scripts are in.hremd_breathing and in.hremd_nonbreathing
 
 2. run lammps using at least 16 cores
->mpirun -np 16 ./lmp_DNA_mpi -partition 16x1 -in in.hremd_breathing
+>mpirun -np 16 ./lmp -partition 16x1 -in in.hremd_breathing
     
 These simulations for both breathing and non-breathing will generate the trajectories for our main results in figures 3 and 4.
 
