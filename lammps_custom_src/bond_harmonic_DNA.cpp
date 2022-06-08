@@ -43,7 +43,8 @@
 //#define NAN_DEBUG
 //#define BOND_ORDER_DEBUG
 //#define SLIDE_DEBUG
-#define Q_PRINT
+//#define Q_PRINT
+//#define DBG_SEQ
 
 using namespace LAMMPS_NS;
 
@@ -631,6 +632,11 @@ void BondHarmonic_DNA::compute(int eflag, int vflag)
     std::string bp1 = base_pairs[tags[i1]];
     std::string bp2 = base_pairs[tags[i2]];
 
+    if (bp1 == "" || bp2 == ""){
+      std::cerr << "Basepairs requested for atoms " << i1 << " and " << i2 << " but not found. Normally, this means there are missing entries in DNA_sequence.txt." << std::endl;
+      exit(1);
+    }
+
     // parse the basepair step
     // bp1[0] bp2[0]
     // bp1[1] bp2[1]
@@ -643,6 +649,14 @@ void BondHarmonic_DNA::compute(int eflag, int vflag)
     std::string name = std::string(1,bp1[0]) + bp2[0] +"_"+ bp2[1] + bp1[1];
 
     helical_paramsstruct bond_helical_params = helical_params_map[name];
+
+#ifdef DBG_SEQ
+    std::cout << "n: " << n << "\n";
+    std::cout << "i: " << i1 << ", " << i2 << "\n";
+    std::cout << "bp: " << bp1 << ", " << bp2 << "\n";
+    std::cout << "name: " << name << "\n";
+    std::cout << "params: " << bond_helical_params.means[0] << ", " << bond_helical_params.means[1] << ", " << bond_helical_params.means[2] << ", " << bond_helical_params.means[3] << ", " << bond_helical_params.means[4] << ", " << bond_helical_params.means[5] << "\n";
+#endif
 
 #ifdef PRINT_DEBUG
     std::cout << "name = " << name << std::endl;
