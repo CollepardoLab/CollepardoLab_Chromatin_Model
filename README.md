@@ -39,7 +39,7 @@ git clone https://github.com/lammps/lammps.git
 cd <path/to/lammps>
 git checkout tags/stable_29Sep2021 -b stable  
 mkdir build && cd build
-cmake -D BUILD_SHARED_LIBS=yes -D BUILD_TOOLS=yes -D PKG_ASPHERE=yes -D PKG_RIGID=yes -D PKG_MOLECULE=yes -D PKG_PLUGIN=yes  ../cmake
+cmake -D BUILD_SHARED_LIBS=yes -D BUILD_TOOLS=yes -D PKG_ASPHERE=yes -D PKG_RIGID=yes -D PKG_MOLECULE=yes -D PKG_PLUGIN=yes -DCMAKE_CXX_FLAGS='-O3 -march=native -fno-math-errno -ffast-math'  ../cmake
 make install
 ```
 next, compile the LAMMPS plugin, giving it the path to the LAMMPS source folder:
